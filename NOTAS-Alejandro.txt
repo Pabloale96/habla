@@ -1,0 +1,292 @@
+################################## HTK ########################################
+
+###############################################################################
+Aclaraciones:
+###############################################################################
+
+Cuando se pone el simbolo º, indica una referencia por lo tanto el primer
+simbolo sobre un comando indica al ultimo referenciado
+
+###############################################################################
+Aclaraciones sobre el uso del servidor:
+################################################################################
+
+Para iniciar sesion en el servidor de la facu se usa el comando:
+
+ssh -X -l "usuario" habla.fi.uba.ar
+
+El -X es opcional, pero te permite usar etornos graficos del servidor
+ directamente. Recomiendo usarlo.
+
+###############################################################################
+Comienzo del trabajo de HTK:
+###############################################################################
+
+
+Se creo la siguiente estructura de carpetas:
+
+* proyecto
+   * datos
+      * wav (esto se crea cuando realizamos el puntero a wav de la carpeta
+              /dbase/latino40/wav)º
+         * train
+         * test
+      * mfc
+         * train
+         * test
+   * etc
+   * modelos
+   * rec
+   * log
+   * config
+   * scripts
+   * lm
+
+Para eso se uso el comando mkdir "nombre de la carpeta" de la terminar
+de ubuntu(obs: tambien se puede hacer mkdir "carpeta1" "carpeta2" ..., y poner
+una direccion de la carpeta, como "datos/wav", para esto datos tiene que
+estar creada ). Para borar una carpeta con sub carpetas adentro uso el comando
+rm "nombre de la carpeta" -R (el -R indica que es recursivo).
+
+A continuacion se copiaron los siguientes archivos de la carpeta
+/home/cestien/proyecto:
+
+* config.hcopy en ~/proyecto/config
+* go.mfclist, prompts2mlf, go.gen-hmmdefs  y go.gen-macros  en ~/proyecto/scripts
+* lexicon, lexicon.gf, wlistgf, promptsl40.train, promptsl40.test, mkphones-sp.led  en  ~/proyecto/etc
+* proto en ~/proyecto/modelos
+
+Para eso se uso el comando cp "archivo a copiar" "lugar donde copiar".
+
+###############################################################################
+Parametrizacion de los datos:
+###############################################################################
+
+Para comenzar, creo un puntero que apunte a los datos ubicados en la carpeta
+"/dbase/latino40/wav", para eso se utiliza el comando
+
+ln -s /dbase/latino40/wav
+
+con esto logro conseguir los datos sobre la direccion proyecto/datos/wav. Ahora
+genero dos archivos que me tienen listas de las direcciones de los mfc. Estos
+archivos se llaman genmfc.train y genmfc.test y contienen lo siguiente:
+
+Ejemplo genmfc.train:
+"wav/train/af01/af01_001.wav" "mfc/train/af01/af01_001.mfc/"
+....(continua uno debajo del otro )
+
+Ejemplo genmfc.test:
+"wav/test/af14/af14_001.wav" "mfc/test/af14/af14_001.mfc/"
+....(continua uno debajo del otro )
+
+Ahi se observa que los archivos contienen solo las direcciones de los datos de
+entrenamiento y de testeo, estos archivos se encuentran en la carpeta
+proyecto/datos/mfc/. La herramienta de HTK pide tenes estos archivos para
+realizar el comando HCopy, este comando me genera los archivos mfcc que seran
+utilizado luego. Para configurar el HCopy, uso el archivo
+proyecto/config/config.hcopy que contiene lo siguiente
+
+# Coding parameters (T=True F=False)
+TARGETKING = MFCC_0
+#TARGETKING = MFCC_0_D_A
+TARGETRATE = 100000.0
+SAVECOMPRESSED = T (¿guardar con compresion?)
+SAVEWITHCRC = T
+WINDOWSIZE =250000.0 (tamaño de la ventana)
+USEHAMMING = T  (si uso la ventana de hamming)
+PREEMCOEF = 0.97
+NUMCHANS =26
+CEPLIFTER = 22
+NUMCEPS =12
+ENORMALISE = F (normalizar los datos)
+SOURCEFORMAT = NIST (formato)
+
+El comando HCopy -A -V -T 1 -C proyecto/config/config.hcopy -S  proyecto/datos/genmfc.train y el comando
+HCopy -A -V -T 1 -C proyecto/config/config.hcopy -S proyecto/datos/genmfc.test me carga la confiuracion
+del archivo config.hcopy. Aparte me genero los archivos af14_001.mfc en la carpeta proyecto/datos/mfc/af14.
+Y asi con cada unos de los datos de entrenamiento o testeo, para eso ejecuto el programa go.mfclist copiado
+de la carpeta de cestien.
+
+###############################################################################
+Creación de un diccionario:
+###############################################################################
+
+A continuacion, me genero una lista de palabras (antes tengo que tener activado el LC_CTYPE=ISO_8859_1)
+para despues crear un diccionario de palabras junto con un archivo que contiene los fonemas con el
+comando de HDMan. Para eso ejecuto el comando:
+
+cat /proyecto/etc/promptsl40.train /proyecto/etc/promptsl40.test | awk \
+    '{for(i=2;i<NF;i++){print $i}}' | sort | uniq > /proyecto/etc/wlistl40
+
+Donde se me genera un archivo de wlistl40 que contiene una lista de palabras de los datos a entrenar. De
+la siguiente forma:
+
+a
+abajo
+abandona
+...(continua para abajo en orden alfabetico, esto es por el sort y el uniq saca las repeticiones)
+
+Una vez obtenida la lista, se prosigue a la creacion del diccionario con el HDMan mencionado anteriormente.
+Se crea un archivo /proyecto/etc/global.ded con la siguiente instruccion:
+
+  echo "AS sp" > /proyecto/etc/global.ded (agrega un fonema de short pausa al final de cada fonema)
+
+Luego se prosigue a realizar el HDMan con la siguiente linea (mantener activado el LC_CTYPE=ISO_8859_1):
+
+  HDMan -m -/proyecto/etc/wlist40 -g /proyecto/etc/global.ded -n monophones+sil -l \
+          proyecto/log/hdman.log /proyecto/etc/dictl40 /proyecto/etc/lexicon
+
+###############################################################################
+Creacion de las transcripciones de palabra y fonética:
+###############################################################################
+
+A continuacion, proseguimos a realizar los archivos master label file o MLF. Se uso el programa prompts2mlf
+que transforma las transcripciones promptsl40.train y promptsl40.test en archivos MLF. Se ejecuto de la forma:
+
+  proyecto/scripts/prompts2mlf trainmlf promptsl40.train
+  proyecto/scripts/prompts2mlf testmlf promptsl40.test
+
+Se continua creando las transcripciones de estos fonemas con la herramienta HLED, para eso se necesita un archivo
+mkphones0.led, en el cual tiene las siguientes instrucciones:
+
+  EX            (reemplaza las palabras por su pronunciacion en el diccionario)
+  IS sil sil    (inserta silencios al principio y al final de cad audio)
+  DE sp         (borrar los sp de los audios)
+
+Luego desactivo el LC_CTYPE=ISO_8859_1 con el comando "unset LC_CTYPE" y prosigo en ejecutar el comando HLEd
+de la siguiente forma:
+
+  HLED -l '*' -d dictl40 -i phones0.mlf mkphones0.led trainmlf
+
+###############################################################################
+Creacion de modelos de una sola gaussiana:
+###############################################################################
+
+ACLARACION: en esta seccion se crean tantos directorios que sean necesario para los diferentes modelos, estos llevan el nombre
+hmmX, donde X es un numero que va del 0 a 6. Para la mezcla de gaussiana se crean con el siguiente formato hmmX-Y con X es el modelos
+y Y es la cantidad de gaussianas.
+
+A continuacion se crea un modelo inical con las herramientas copiadas en la carpeta de cestien, para eso necesito
+una lista de todos los datos, tantos los de entrenamiento como los de testeo para eso ejecuto el siguiente comando
+
+  ls proyectos/datos/mfc/train/*/*  > proyectos/modelos/train.scp
+  ls proyectos/datos/mfc/test/*/*  > proyectos/modelos/test.scp
+
+Con los train.scp se calcula una media y una varianza global seteando todas las gaussianas generadas a esa media y varianza.
+Cada uno de los HMM tiene un vector de longitud 39 dado que tiene los coeficientes mfc, las diferencias entre ellos y las diferencias
+segundas. Para eso se usa el comando HCompV de la siguiente forma:
+
+  HCompV -C proyectos/config -f 0.01 -m -S train.scp -M hmm0 proyecto/modelos/hmm0 proto
+
+Con el comando anterior, se genero 2 archivos. El primero es un piso para la varianza asi se evita hacer singular llamado "vFloors" y
+el segundo llamado proto que es un modelo prototipo de los HMM. Usando los programas "go.gen-hmmdefs" y "go.gen-macros" se crea en hmm0 dos
+carpetas macros y hmmdefs y se genera un modelo inicial del HMM. Los comandos de los programas son los siguietes:
+
+  proyecto/scripts/go.gen-hmmdefs proyecto/etc/monophones+sil proyecto/hmm0/proto > proyecto/hmm0/hmmdefs
+	proyecto/scripts/go.gen-macros proyecto/hmm0/vFloors  proyecto/hmm0/proto > proyecto/hmm0/macros
+
+Luego de tener un modelo inical, se prosigue a un entrenamiento a traves del comando HRest(se entrena dos veces hasta un hmm2) de la siguiente
+forma (el comando se realizo en la carpeta proyecto/modelos ):
+
+  HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm0/macros\
+	       -H hmm0/hmmdefs -M  hmm1 ../etc/monophones+sil
+	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm1/macros\
+	       -H hmm1/hmmdefs -M  hmm2 ../etc/monophones+sil
+
+Pero este entrenamiento no tuvo en cuenta el fonema de sp, por lo tanto se copia los archivos generados a un hmm3 y se edita el modelo para
+incluir el fonema sp. Se tomaron los siguiente valores:
+
+  ~h "sp"
+  <BEGINHMM>
+  <NUMSTATES> 3
+  <STATE> 2
+  <MEAN> 39
+  -1.062304e+01 -4.842096e+00 4.259071e+00 -4.458045e-01 9.249309e-01 2.840052e+00 2.709087e+00 1.805307e+00 2.275873e+00$
+  <VARIANCE> 39
+  1.670470e+01 1.360401e+01 1.752293e+01 3.076461e+01 3.570570e+01 3.163674e+01 2.846498e+01 2.830995e+01 2.700364e+01 2.5$
+  <GCONST> 1.017977e+02
+  <TRANSP> 3
+  0.000000e+00 1.000000e+00 0.000000e+00
+  0.000000e+00 9.452302e-01 5.476980e-02
+  0.000000e+00 0.000000e+00 0.000000e+00
+  <ENDHMM>
+
+Luego se realizan otros dos entrenamientos con la herramienta HERest (se entrena el fonema sp):
+
+  HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm4/macros -H hmm4/hmmdefs\
+         -M  hmm5 ../etc/monophones+sil+sp
+  HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm5/macros -H hmm5/hmmdefs\
+         -M  hmm6 ../etc/monophones+sil+sp
+
+###############################################################################
+Creacion de modelos de lenguajes:
+###############################################################################
+
+Para la creacion de los modelos, necesito las transcripciones sin la identificacion que se coloca en "promptsl40.train". Para eso
+se usa el awk de nuevo, y guardando el resultado en train.txt:
+
+  awk '{for(n=2;n<=NF;n++){printf"%s ",$n;}printf"\n";}' promptsl40.train > train.txt
+
+Luego se realiza lo mismo, solo que se usa los datos de testeo:
+
+  cat promptsl40.test |awk '{for(i=2;i<=NF;i++){print $i}}'|sort|uniq > vocab
+
+El vocabulario no tiene los fonemas de <s> y </s> por lo que se agrega editanco el vocab. Esto se hace para poder detectar los
+comienzo y fines de cada oración. Lo mismo se hace con el diccionario agregando lo siguiente:
+
+  <s> [] 	sil
+  </s> [] sil
+
+Usando la herramienta SRIML "ngram-count" se crea un modelo de lenguaje llamado "lml40", generando bigramas (dos palabras, es decir, que
+la probabilidad de decir una palabra solo depende de la anterior), se ejecuto el siguiente comando(en la carpeta proyecto/modelos):
+
+  ../../../../usr/local/speechapp/srilm/bin/i686-m64/ngram-count -order 2 -text train.txt -lm lml40 -ukndiscount2 -vocab vocab
+
+ la propiedad -orden me dice el maximo orden de ngramas, mientras ukndiscount2 indica que se usa un suaviza de tipo Kneser-Ney. Esto me
+ genera el lml40. Luego se crea una red de palabras o lattice, para eso el HTK tiene la herramienta de HBuild y necesita el modelo de bigramas
+ y el vocabulario (vocab). El comando a ejecutar es el siguiente:
+
+  HBuild -s '<s>' '</s>' -n lml40  vocab wdnet
+
+donde el -s indica el comienzo y el fin de cada frase. Con esto obtego el wdnet para despues usar para el reconocimiento de las palabras de
+testeo.
+
+###############################################################################
+Reconocimiento con el modelo de unigramas y una sola gaussiana:
+###############################################################################
+
+Luego de tener el wdnet, el HTK nos da una herramienta para la implementacion del algoritmo de viterbi (reconocimiento) y la herramienta
+HRest para la evaluacion de los resultados. Nos paramos en la carpeta proyecto/rec y ejecutamos el algoritmo de viterbi con el siguiente
+comando:
+
+  HVite -H -C ../config/config ../modelos/hmm6/macros -H ../modelos/hmm6/hmmdefs -S ../modelos/test.scp -l '*'\
+	      -i ../etc/recout.mlf -w ../etc/wdnet -p 0.0 -s 5.0 ../etc/dictl40 ../etc/monophones+sil+sp &
+
+y observamos los resultados con el sguiente comando:
+
+  HResults -I test.mlf monophones+sil+sp recout.mlf
+
+dando lo siguiente:
+
+###############################################################################
+Refinamiento del modelo agregando mezclas de gaussianas:
+###############################################################################
+
+Los resultados anteriores fueron con una sola gaussiana, a continuacion se entrena una mezcla de gaussiana. Para eso se edita el archivo
+"cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear. Se realiza dos entrenamiento mas con lo
+visto anteriormente (HRest) y luego se corre el HVite. Se observan los resultados con HResults. Esto se hace con mezclas de gaussianas de
+4,8,16,32,64,128 y 256. Los resultados son los siguientes:
+
+4 gaussianas:
+
+8 gaussianas:
+
+16 gaussianas:
+
+32 gaussianas:
+
+64 gaussianas:
+
+128 gaussianas:
+
+256 gaussianas:
