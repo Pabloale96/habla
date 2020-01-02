@@ -245,9 +245,9 @@ forma (el comando se realizo en la carpeta proyecto/modelos ):
 Pero este entrenamiento no tuvo en cuenta el fonema de sp, por lo tanto se copia los archivos generados a un hmm3 y se edita el modelo para
 incluir el fonema sp. Se tomaron los siguiente valores:
 
-<<<<<<< HEAD
-  ~h "sp"
-  <BEGINHMM>
+
+~h "sp"
+<BEGINHMM>
   <NUMSTATES> 3
   <STATE> 2
   <MEAN> 39
@@ -256,18 +256,6 @@ incluir el fonema sp. Se tomaron los siguiente valores:
   	la varianza del estado 3 del fonema sil
   <GCONST> 1.017977e+02
   <TRANSP> 3
-=======
-~h "sp"
-<BEGINHMM>
-<NUMSTATES> 3
-<STATE> 2
-<MEAN> 39
- -1.062304e+01 -4.842096e+00 4.259071e+00 -4.458045e-01 9.249309e-01 2.840052e+00 2.709087e+00 1.805307e+00 2.275873e+00 1.927618e+00 2.742909e+00 3.314206e+00 5.419353e+01 -1.942371e-02 -6.639288e-03 1.934440e-02 1.797460e-02 9.579111e-03 1.741767e-02 8.625756e-03 1.338241e-02 1.606889e-02 1.539147e-02 1.443504e-02 1.166818e-02 -3.004279e-02 7.110930e-03 -1.300049e-03 7.874533e-04 -3.183195e-04 -2.973083e-03 -2.025229e-03 -2.513977e-04 -3.866887e-03 -1.338132e-03 -8.216393e-03 -3.275187e-03 -3.919182e-03 2.621133e-03
-<VARIANCE> 39
- 1.670470e+01 1.360401e+01 1.752293e+01 3.076461e+01 3.570570e+01 3.163674e+01 2.846498e+01 2.830995e+01 2.700364e+01 2.543747e+01 2.607998e+01 1.950136e+01 4.533323e+01 8.740953e-01 8.461108e-01 1.063192e+00 1.644269e+00 1.804268e+00 1.782622e+00 1.897703e+00 1.949819e+00 1.894027e+00 1.904527e+00 1.724326e+00 1.446818e+00 1.076812e+00 1.487974e-01 1.527862e-01 1.913460e-01 2.931665e-01 3.342783e-01 3.395017e-01 3.682860e-01 3.765580e-01 3.743504e-01 3.762642e-01 3.399990e-01 2.903782e-01 1.639897e-01
-<GCONST> 1.017977e+02
-<TRANSP> 3
->>>>>>> 9879b100ec0138d108917fe373ec8df98e4eaa4f
   0.000000e+00 1.000000e+00 0.000000e+00
   0.000000e+00 9.452302e-01 5.476980e-02
   0.000000e+00 0.000000e+00 0.000000e+00
@@ -360,8 +348,6 @@ Refinamiento del modelo agregando mezclas de gaussianas:
 Los resultados anteriores fueron con una sola gaussiana, a continuacion se entrena una mezcla de gaussiana. Para eso se creo el archivo 
 "cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear (el numero 2). Luego se usa el HHEd para crear un modelo HMM1-2.
 Como :
-
-<<<<<<< HEAD
 	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 cmds.hed ../etc/monophones+sil+sp
 
 Se realiza dos entrenamiento mas con lo visto anteriormente (HRest) y luego se corre el HVite. Se observan los resultados con HResults. Esto se hace con mezclas 
@@ -370,8 +356,6 @@ de 8 gaussiana y despues se uso el HHEd cambiando el cmds.hed para que cree la m
 
  Los resultados son los siguientes:
 
-=======
->>>>>>> 9879b100ec0138d108917fe373ec8df98e4eaa4f
 2 gaussianas:
 ====================== HTK Results Analysis =======================
   Date: Tue Dec 10 17:34:12 2019
@@ -444,9 +428,7 @@ WORD: %Corr=85.44, Acc=81.64 [H=6758, D=202, S=950, I=300, N=7910]
 SENT: %Correct=46.10 [H=455, S=532, N=987]
 WORD: %Corr=85.11, Acc=80.52 [H=6732, D=172, S=1006, I=363, N=7910]
 ===================================================================
-<<<<<<< HEAD
 
 De aca se ve que usar 258 es un gasto de computadora inecesario, porque baja el reconocimiento
 entonces conviene usar 128. Hay que aclarar que esto es para la cantidad de datos usados.
-=======
->>>>>>> 9879b100ec0138d108917fe373ec8df98e4eaa4f
+
