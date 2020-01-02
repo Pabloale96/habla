@@ -2,14 +2,14 @@
 
 ###############################################################################
 Aclaraciones:
-###############################################################################
+-------------------------------------------------------------------------------
 
 Cuando se pone el simbolo º, indica una referencia por lo tanto el primer
 simbolo sobre un comando indica al ultimo referenciado
 
 ###############################################################################
 Aclaraciones sobre el uso del servidor:
-################################################################################
+-------------------------------------------------------------------------------
 
 Para iniciar sesion en el servidor de la facu se usa el comando:
 
@@ -18,10 +18,15 @@ ssh -X -l "usuario" habla.fi.uba.ar
 El -X es opcional, pero te permite usar etornos graficos del servidor
  directamente. Recomiendo usarlo.
 
+exit para salir del servidor.
+
 ###############################################################################
 Comienzo del trabajo de HTK:
 ###############################################################################
 
+###############################################################################
+Creacion de las carpetas:
+-------------------------------------------------------------------------------
 
 Se creo la siguiente estructura de carpetas:
 
@@ -60,16 +65,22 @@ Para eso se uso el comando cp "archivo a copiar" "lugar donde copiar".
 
 ###############################################################################
 Parametrizacion de los datos:
-###############################################################################
+-------------------------------------------------------------------------------
 
-Para comenzar, creo un puntero que apunte a los datos ubicados en la carpeta
+Para comenzar, creo un puntero (un link) que apunte a los datos ubicados en la carpeta
 "/dbase/latino40/wav", para eso se utiliza el comando
 
-ln -s /dbase/latino40/wav
+	ln -s /dbase/latino40/wav
 
 con esto logro conseguir los datos sobre la direccion proyecto/datos/wav. Ahora
 genero dos archivos que me tienen listas de las direcciones de los mfc. Estos
-archivos se llaman genmfc.train y genmfc.test y contienen lo siguiente:
+archivos se llaman genmfc.train y genmfc.test, estos archivos fueron generados 
+a partir del programa copiado de la carpeta de cestine llamado "go.mfclist" ejecutando 
+el siguiente comando:
+
+	../scripts/go.mfclist genmfc.train genmfc.test 
+
+genmfc.train y genmfc.test contienen lo siguiente:
 
 Ejemplo genmfc.train:
 "wav/train/af01/af01_001.wav" "mfc/train/af01/af01_001.mfc/"
@@ -109,16 +120,24 @@ de la carpeta de cestien.
 
 ###############################################################################
 Creación de un diccionario:
-###############################################################################
+-------------------------------------------------------------------------------
 
-A continuacion, me genero una lista de palabras (antes tengo que tener activado el LC_CTYPE=ISO_8859_1)
+Para realizar un reconecedor de voz, necesito un listado de pronunciaciones que quiero reconocer. A este 
+listado lo llamamos diccionario.
+El diccionario se puede crear con la herramienta HDMan, pero esta herramienta pides unos archivos en cierto formato,
+para eso me genero una lista de palabras (antes tengo que tener activado el LC_CTYPE=ISO_8859_1)
 para despues crear un diccionario de palabras junto con un archivo que contiene los fonemas con el
-comando de HDMan. Para eso ejecuto el comando:
+comando de HDMan. Las palabras usada, son las palabras que se encuentran en los datos de entrenamiento como de testeo 
+esto se debe porque lo que el diccionario tiene que contener las palabras que uno quiere estimar, y para realizar el 
+testeo necesito que el diccionaria tenga las palabras de testeo (aunque estas no aparezcan en el entrenamiento). Si una
+palabra no esta en el diccionario, lo que ocurre que el reconocedor inteta estimarla con una palabra que se encuentre en 
+el mismo (no estoy seguro de esto ultimo, porque en realidad hacemos un entrenamiento de fonemas).
+Para eso ejecuto el comando:
 
 cat /proyecto/etc/promptsl40.train /proyecto/etc/promptsl40.test | awk \
     '{for(i=2;i<NF;i++){print $i}}' | sort | uniq > /proyecto/etc/wlistl40
 
-Donde se me genera un archivo de wlistl40 que contiene una lista de palabras de los datos a entrenar. De
+Donde se me genera un archivo de wlistl40 que contiene una lista de palabras de cada palabra de los datos(entrenamiento y testeo). De
 la siguiente forma:
 
 a
@@ -129,24 +148,40 @@ abandona
 Una vez obtenida la lista, se prosigue a la creacion del diccionario con el HDMan mencionado anteriormente.
 Se crea un archivo /proyecto/etc/global.ded con la siguiente instruccion:
 
-  echo "AS sp" > /proyecto/etc/global.ded (agrega un fonema de short pausa al final de cada fonema)
+  echo "AS sp" > /proyecto/etc/global.ded (agrega un fonema de short pausa al final de cada palabra)
 
 Luego se prosigue a realizar el HDMan con la siguiente linea (mantener activado el LC_CTYPE=ISO_8859_1):
 
   HDMan -m -/proyecto/etc/wlist40 -g /proyecto/etc/global.ded -n monophones+sil -l \
           proyecto/log/hdman.log /proyecto/etc/dictl40 /proyecto/etc/lexicon
 
+Me devuelve el diccionario en el archivo dictl40 y el archivo monophones+sil que se encuentra los diferentes fonemas,
+este archivo se edita y se agrega el fonema sil y se borra el fonema sp (sil me indica el fin/comienzo de cada palabra y el sp 
+es un fonome que se agrega de paso, pero para mejorar el reconocimiento se entrena mas adelante). El archivo dictl40 tiene la 
+siguiente forma:
+
+	<palabra1> <fonema1> <fonema2> <fonema3> ... sp(por el AS sp) [fonema1 es el primer fonema y asi con todas las demas]
+	<palabra2> <fonema1> <fonema2> <fonema3> ... sp(por el AS sp)
+	(con todas las palabras del listado wlistl40)
+
+y el monophones+sil:
+	
+	<fonema1>
+	<fonema2>
+	<fonema3>
+	...(con todos los fonomelas el listado wlistl40 )
+
 ###############################################################################
 Creacion de las transcripciones de palabra y fonética:
-###############################################################################
+-------------------------------------------------------------------------------
 
-A continuacion, proseguimos a realizar los archivos master label file o MLF. Se uso el programa prompts2mlf
+A continuacion, proseguimos a realizar los archivos master label file o MLF (se explica mas abajo). Se uso el programa prompts2mlf
 que transforma las transcripciones promptsl40.train y promptsl40.test en archivos MLF. Se ejecuto de la forma:
 
   proyecto/scripts/prompts2mlf trainmlf promptsl40.train
   proyecto/scripts/prompts2mlf testmlf promptsl40.test
 
-Se continua creando las transcripciones de estos fonemas con la herramienta HLED, para eso se necesita un archivo
+Se continua creando las transcripciones de estos fonemas con la herramienta HLEd, para eso se necesita un archivo
 mkphones0.led, en el cual tiene las siguientes instrucciones:
 
   EX            (reemplaza las palabras por su pronunciacion en el diccionario)
@@ -158,16 +193,30 @@ de la siguiente forma:
 
   HLED -l '*' -d dictl40 -i phones0.mlf mkphones0.led trainmlf
 
+Este comando me devuelve el archivo phones0.led, que son los datos pero en formato de MLF. Los archivos MLF dan informacion sobre 
+las transcripciones, estos pueden a nivel palabra o fonema. El formato que tienen es el siguiente:
+
+	<Nombre del archivo>
+	<palabra1/fonema1>
+	<palabra2/fonema2>
+	...(todas las palabras/fonemas del archivo)
+	. (indica el fin del archivo)
+
+los archivos MLF de palabras son los creados con la herramienta prompts2mlf (testmlf y trainmlf), los archivos MLF de los fonemas se uso 
+el comando HLED y estan en el archivo phones0.mlf (este no contiene el sp, mas adelante se agrega el sp haciendo lo mismo solo cambiando
+la configuracion de mkphones0.led).
+
 ###############################################################################
 Creacion de modelos de una sola gaussiana:
-###############################################################################
+-------------------------------------------------------------------------------
 
 ACLARACION: en esta seccion se crean tantos directorios que sean necesario para los diferentes modelos, estos llevan el nombre
 hmmX, donde X es un numero que va del 0 a 6. Para la mezcla de gaussiana se crean con el siguiente formato hmmX-Y con X es el modelos
 y Y es la cantidad de gaussianas.
 
 A continuacion se crea un modelo inical con las herramientas copiadas en la carpeta de cestien, para eso necesito
-una lista de todos los datos, tantos los de entrenamiento como los de testeo para eso ejecuto el siguiente comando
+una lista de todos los datos (se hace de entrenamiento y de testeo, los de testeo se usan mas adelante), 
+tantos los de entrenamiento como los de testeo para eso ejecuto el siguiente comando
 
   ls proyectos/datos/mfc/train/*/*  > proyectos/modelos/train.scp
   ls proyectos/datos/mfc/test/*/*  > proyectos/modelos/test.scp
@@ -178,17 +227,17 @@ segundas. Para eso se usa el comando HCompV de la siguiente forma:
 
   HCompV -C proyectos/config -f 0.01 -m -S train.scp -M hmm0 proyecto/modelos/hmm0 proto
 
-Con el comando anterior, se genero 2 archivos. El primero es un piso para la varianza asi se evita hacer singular llamado "vFloors" y
-el segundo llamado proto que es un modelo prototipo de los HMM. Usando los programas "go.gen-hmmdefs" y "go.gen-macros" se crea en hmm0 dos
-carpetas macros y hmmdefs y se genera un modelo inicial del HMM. Los comandos de los programas son los siguietes:
+Con el comando anterior, se genero 2 archivos. El primero es un piso para la varianza (para evitar que la matriz de cova se haga singular) 
+llamado "vFloors" y el segundo llamado proto que es un modelo prototipo de los HMM. Usando los programas "go.gen-hmmdefs" y "go.gen-macros" 
+se crea en hmm0 dos carpetas macros y hmmdefs y se genera un modelo inicial del HMM. Los comandos de los programas son los siguietes:
 
-  proyecto/scripts/go.gen-hmmdefs proyecto/etc/monophones+sil proyecto/hmm0/proto > proyecto/hmm0/hmmdefs
+	proyecto/scripts/go.gen-hmmdefs proyecto/etc/monophones+sil proyecto/hmm0/proto > proyecto/hmm0/hmmdefs
 	proyecto/scripts/go.gen-macros proyecto/hmm0/vFloors  proyecto/hmm0/proto > proyecto/hmm0/macros
 
 Luego de tener un modelo inical, se prosigue a un entrenamiento a traves del comando HRest(se entrena dos veces hasta un hmm2) de la siguiente
 forma (el comando se realizo en la carpeta proyecto/modelos ):
 
-  HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm0/macros\
+	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm0/macros\
 	       -H hmm0/hmmdefs -M  hmm1 ../etc/monophones+sil
 	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm1/macros\
 	       -H hmm1/hmmdefs -M  hmm2 ../etc/monophones+sil
@@ -201,9 +250,9 @@ incluir el fonema sp. Se tomaron los siguiente valores:
   <NUMSTATES> 3
   <STATE> 2
   <MEAN> 39
-  -1.062304e+01 -4.842096e+00 4.259071e+00 -4.458045e-01 9.249309e-01 2.840052e+00 2.709087e+00 1.805307e+00 2.275873e+00$
+  	la media del estado 3 del fonema sil
   <VARIANCE> 39
-  1.670470e+01 1.360401e+01 1.752293e+01 3.076461e+01 3.570570e+01 3.163674e+01 2.846498e+01 2.830995e+01 2.700364e+01 2.5$
+  	la varianza del estado 3 del fonema sil
   <GCONST> 1.017977e+02
   <TRANSP> 3
   0.000000e+00 1.000000e+00 0.000000e+00
@@ -211,30 +260,43 @@ incluir el fonema sp. Se tomaron los siguiente valores:
   0.000000e+00 0.000000e+00 0.000000e+00
   <ENDHMM>
 
-Luego se realizan otros dos entrenamientos con la herramienta HERest (se entrena el fonema sp):
+Para continuar con los entrenamientos se utiliza la herramiento HHEd, para eso se usa el archivo sil.hed que contiene lo siguiente:
 
-  HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm4/macros -H hmm4/hmmdefs\
-         -M  hmm5 ../etc/monophones+sil+sp
+	AT 2 4 0.2 {sil.transP}
+	AT 4 2 0.2 {sil.transP}
+	AT 1 3 0.3 {sp.transP}
+	TI silst {sil.state[3],sp.state[2]}
+
+que le indica a la función como debe agregar las transiciones. Se ejecuta el comando como:
+
+	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 sil.hed ../etc/monophones+sil+sp
+
+Luego se realizan otros dos entrenamientos con la herramienta HERest (se entrena el fonema sp), y para eso se necesito crear un archivo
+phones1.mlf que contenga el fonema sp (se hace el mismo HHEd solo que el archivo mkphones0.mlf se le saca la linea DE sp) y se agrega 
+en monophones+sil el fonema sp y se renombra con monophones+sil+sp:
+
   HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm5/macros -H hmm5/hmmdefs\
+         -M  hmm5 ../etc/monophones+sil+sp
+  HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm6/macros -H hmm6/hmmdefs\
          -M  hmm6 ../etc/monophones+sil+sp
 
 ###############################################################################
 Creacion de modelos de lenguajes:
-###############################################################################
+-------------------------------------------------------------------------------
 
 Para la creacion de los modelos, necesito las transcripciones sin la identificacion que se coloca en "promptsl40.train". Para eso
 se usa el awk de nuevo, y guardando el resultado en train.txt:
 
   awk '{for(n=2;n<=NF;n++){printf"%s ",$n;}printf"\n";}' promptsl40.train > train.txt
 
-Luego se realiza lo mismo, solo que se usa los datos de testeo:
+Luego se realiza lo mismo, solo que se usa los datos de testeo creando un archivo de vocabulario:
 
   cat promptsl40.test |awk '{for(i=2;i<=NF;i++){print $i}}'|sort|uniq > vocab
 
-El vocabulario no tiene los fonemas de <s> y </s> por lo que se agrega editanco el vocab. Esto se hace para poder detectar los
+El vocabulario no tiene los fonemas de <s> y </s> por lo que se agrega editando vocab. Esto se hace para poder detectar los
 comienzo y fines de cada oración. Lo mismo se hace con el diccionario agregando lo siguiente:
 
-  <s> [] 	sil
+  <s>  [] sil
   </s> [] sil
 
 Usando la herramienta SRIML "ngram-count" se crea un modelo de lenguaje llamado "lml40", generando bigramas (dos palabras, es decir, que
@@ -253,7 +315,7 @@ testeo.
 
 ###############################################################################
 Reconocimiento con el modelo de unigramas y una sola gaussiana:
-###############################################################################
+-------------------------------------------------------------------------------
 
 Luego de tener el wdnet, el HTK nos da una herramienta para la implementacion del algoritmo de viterbi (reconocimiento) y la herramienta
 HRest para la evaluacion de los resultados. Nos paramos en la carpeta proyecto/rec y ejecutamos el algoritmo de viterbi con el siguiente
@@ -262,7 +324,7 @@ comando:
   HVite -H -C ../config/config ../modelos/hmm6/macros -H ../modelos/hmm6/hmmdefs -S ../modelos/test.scp -l '*'\
 	      -i ../etc/recout.mlf -w ../etc/wdnet -p 0.0 -s 5.0 ../etc/dictl40 ../etc/monophones+sil+sp &
 
-y observamos los resultados con el sguiente comando:
+y observamos los resultados con el sguiente comando(los resultados se encuentra en el archivo recount.mlf):
 
   HResults -I test.mlf monophones+sil+sp recout.mlf
 
@@ -270,23 +332,92 @@ dando lo siguiente:
 
 ###############################################################################
 Refinamiento del modelo agregando mezclas de gaussianas:
-###############################################################################
+-------------------------------------------------------------------------------
 
-Los resultados anteriores fueron con una sola gaussiana, a continuacion se entrena una mezcla de gaussiana. Para eso se edita el archivo
-"cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear. Se realiza dos entrenamiento mas con lo
-visto anteriormente (HRest) y luego se corre el HVite. Se observan los resultados con HResults. Esto se hace con mezclas de gaussianas de
-4,8,16,32,64,128 y 256. Los resultados son los siguientes:
+Los resultados anteriores fueron con una sola gaussiana, a continuacion se entrena una mezcla de gaussiana. Para eso se creo el archivo 
+"cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear (el numero 2). Luego se usa el HHEd para crear un modelo HMM1-2.
+Como :
 
+	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 cmds.hed ../etc/monophones+sil+sp
+
+Se realiza dos entrenamiento mas con lo visto anteriormente (HRest) y luego se corre el HVite. Se observan los resultados con HResults. Esto se hace con mezclas 
+de gaussianas de 2,4,8,16,32,64,128 y 256 siempre usando la ultima mezcla de gaussiana usada, es decir para la mezcla de 16 gaussianas primero se entreno la mezcla
+de 8 gaussiana y despues se uso el HHEd cambiando el cmds.hed para que cree la mezcla de 16 gaussianas. Se muestras los resultados:
+
+ Los resultados son los siguientes:
+
+2 gaussianas:
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:12 2019
+  Ref : ../etc/testmlf
+  Rec : recout2.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=12.66 [H=125, S=862, N=987]
+WORD: %Corr=65.18, Acc=54.12 [H=5156, D=363, S=2391, I=875, N=7910]
+===================================================================
 4 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:14 2019
+  Ref : ../etc/testmlf
+  Rec : recout4.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=23.51 [H=232, S=755, N=987]
+WORD: %Corr=72.44, Acc=64.87 [H=5730, D=302, S=1878, I=599, N=7910]
+===================================================================
 8 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:17 2019
+  Ref : ../etc/testmlf
+  Rec : recout8.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=30.29 [H=299, S=688, N=987]
+WORD: %Corr=77.33, Acc=70.80 [H=6117, D=274, S=1519, I=517, N=7910]
+===================================================================
 16 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:21 2019
+  Ref : ../etc/testmlf
+  Rec : recout16.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=35.66 [H=352, S=635, N=987]
+WORD: %Corr=80.54, Acc=75.31 [H=6371, D=268, S=1271, I=414, N=7910]
+===================================================================
 32 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:24 2019
+  Ref : ../etc/testmlf
+  Rec : recout32.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=41.64 [H=411, S=576, N=987]
+WORD: %Corr=83.15, Acc=79.30 [H=6577, D=223, S=1110, I=304, N=7910]
+===================================================================
 64 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:35 2019
+  Ref : ../etc/testmlf
+  Rec : recout64.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=45.39 [H=448, S=539, N=987]
+WORD: %Corr=84.69, Acc=81.21 [H=6699, D=207, S=1004, I=275, N=7910]
+===================================================================
 128 gaussianas:
-
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:39 2019
+  Ref : ../etc/testmlf
+  Rec : recout128.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=46.10 [H=455, S=532, N=987]
+WORD: %Corr=85.44, Acc=81.64 [H=6758, D=202, S=950, I=300, N=7910]
+===================================================================
 256 gaussianas:
+====================== HTK Results Analysis =======================
+  Date: Tue Dec 10 17:34:44 2019
+  Ref : ../etc/testmlf
+  Rec : recout256.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=46.10 [H=455, S=532, N=987]
+WORD: %Corr=85.11, Acc=80.52 [H=6732, D=172, S=1006, I=363, N=7910]
+===================================================================
+
+De aca se ve que usar 258 es un gasto de computadora inecesario, porque baja el reconocimiento
+entonces conviene usar 128. Hay que aclarar que esto es para la cantidad de datos usados.
