@@ -214,9 +214,9 @@ ACLARACION: en esta seccion se crean tantos directorios que sean necesario para 
 hmmX, donde X es un numero que va del 0 a 6. Para la mezcla de gaussiana se crean con el siguiente formato hmmX-Y con X es el modelos
 y Y es la cantidad de gaussianas.
 
-A continuacion se crea un modelo inical con las herramientas copiadas en la carpeta de cestien, para eso necesito
-una lista de todos los datos (se hace de entrenamiento y de testeo, los de testeo se usan mas adelante), 
-tantos los de entrenamiento como los de testeo para eso ejecuto el siguiente comando
+A continuacion se crea un modelo inical de un modelo HMM (high markov modal), el modelo inicial consiste en los parametros iniciales
+usados para la estimacion a través de distribuciones que se pueden generar como una mezcla de gaussiana. Considerando a cada clase como una sola gaussiana y a través de las herramientas copiadas en la carpeta de cestien, me genero una lista de todos los 
+datos de entrenamiento (lo hago con testeo que se usan mas adelante), 
 
   ls proyectos/datos/mfc/train/*/*  > proyectos/modelos/train.scp
   ls proyectos/datos/mfc/test/*/*  > proyectos/modelos/test.scp
@@ -227,24 +227,29 @@ segundas. Para eso se usa el comando HCompV de la siguiente forma:
 
   HCompV -C proyectos/config -f 0.01 -m -S train.scp -M hmm0 proyecto/modelos/hmm0 proto
 
-Con el comando anterior, se genero 2 archivos. El primero es un piso para la varianza (para evitar que la matriz de cova se haga singular) 
-llamado "vFloors" y el segundo llamado proto que es un modelo prototipo de los HMM. Usando los programas "go.gen-hmmdefs" y "go.gen-macros" 
-se crea en hmm0 dos carpetas macros y hmmdefs y se genera un modelo inicial del HMM. Los comandos de los programas son los siguietes:
+Con el comando anterior, se genero 2 archivos. El primero es un piso para la varianza (para evitar que la matriz de cova se haga 
+singular)llamado "vFloors" y el segundo llamado proto que es un modelo prototipo de los HMM, donde realiza la media de todos los datos y 
+los mismo con la varianza. Usando los programas "go.gen-hmmdefs" y "go.gen-macros" genero los archivos "hmmdefs" y "macros" en las 
+carpetas macros y hmmdefs. Los comandos de los programas son los siguietes:
 
 	proyecto/scripts/go.gen-hmmdefs proyecto/etc/monophones+sil proyecto/hmm0/proto > proyecto/hmm0/hmmdefs
 	proyecto/scripts/go.gen-macros proyecto/hmm0/vFloors  proyecto/hmm0/proto > proyecto/hmm0/macros
 
-Luego de tener un modelo inical, se prosigue a un entrenamiento a traves del comando HRest(se entrena dos veces hasta un hmm2) de la siguiente
-forma (el comando se realizo en la carpeta proyecto/modelos ):
+Luego de tener un modelo inical o HMM0, se prosigue a un entrenamiento o una re-estimacion con los datos test.scp y me genero un nuevo 
+modelo HMM1 a traves del comando HRest(se realiza hasta un hmm2) de la siguiente forma (el comando se realizo en la carpeta 
+proyecto/modelos ):
 
 	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm0/macros\
 	       -H hmm0/hmmdefs -M  hmm1 ../etc/monophones+sil
 	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm1/macros\
 	       -H hmm1/hmmdefs -M  hmm2 ../etc/monophones+sil
 
-Pero este entrenamiento no tuvo en cuenta el fonema de sp, por lo tanto se copia los archivos generados a un hmm3 y se edita el modelo para
-incluir el fonema sp. Se tomaron los siguiente valores:
-
+Estos entrenamientos usaron los archivos MLF de los fonemas (sin sp) "phones0.mlf" junto con la lista de los datos de entrenamiento, el 
+HERest realiza una re-estimacion de los parametros (media, varianza y matrix de transicion) sobre cada gaussiana de cada clase usando 
+la lista de datos de entrenamiento train.scp. El comando tamb ien recibe el archivo "monophones+sil" que es la lista de los fonemas que 
+se encuentrar en los datos de entrenamiento.
+Pero este entrenamiento no tuvo en cuenta el fonema de sp, por lo tanto se copia los archivos generados a un hmm3 y se edita el modelo 
+para incluir el fonema sp. Se tomaron los siguiente valores:
 
 ~h "sp"
 <BEGINHMM>
@@ -269,18 +274,22 @@ Para continuar con los entrenamientos se utiliza la herramiento HHEd, para eso s
 	AT 1 3 0.3 {sp.transP}
 	TI silst {sil.state[3],sp.state[2]}
 
-que le indica a la función como debe agregar las transiciones. Se ejecuta el comando como:
+donde el comando AT me agrega transiciones a las matrices de transiciones de cada fonema(no entoy seguro de esto me suena raro que lo 
+agregue a todos los fonemas.), esto se hace para agregar el silencio sp que no se tuvo encuenta, por otro lado el comando TI me genera un "tied-state" llamado silst(los parametros de este estado se 
+encuentran en hmmdefs). Todo lo anterior se agrega a través de la herramienta HTK HHEd que se ejecuta como:
 
 	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 sil.hed ../etc/monophones+sil+sp
 
-Luego se realizan otros dos entrenamientos con la herramienta HERest (se entrena el fonema sp), y para eso se necesito crear un archivo
-phones1.mlf que contenga el fonema sp (se hace el mismo HHEd solo que el archivo mkphones0.mlf se le saca la linea DE sp) y se agrega 
+Luego se realizan otros dos entrenamientos con la herramienta HERest (se entrena el fonema sp), y para eso necesito crear un archivo
+phones1.mlf que contenga el fonema sp (se hace el mismo HLEd solo que el archivo mkphones0.mlf se le saca la linea DE sp) y se agrega 
 en monophones+sil el fonema sp y se renombra con monophones+sil+sp:
 
   HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm5/macros -H hmm5/hmmdefs\
          -M  hmm5 ../etc/monophones+sil+sp
   HERest -C ../config/config -I ../etc/phones1.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm6/macros -H hmm6/hmmdefs\
          -M  hmm6 ../etc/monophones+sil+sp
+
+Hasta aca tengo el entrenamiento de una sola gaussiana, a continuacion se prosigue a realizar el algoritmo de viterbi para el reconocimiento.
 
 ###############################################################################
 Creacion de modelos de lenguajes:
