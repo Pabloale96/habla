@@ -215,7 +215,8 @@ hmmX, donde X es un numero que va del 0 a 6. Para la mezcla de gaussiana se crea
 y Y es la cantidad de gaussianas.
 
 A continuacion se crea un modelo inical de un modelo HMM (high markov modal), el modelo inicial consiste en los parametros iniciales
-usados para la estimacion a través de distribuciones que se pueden generar como una mezcla de gaussiana. Considerando a cada clase como una sola gaussiana y a través de las herramientas copiadas en la carpeta de cestien, me genero una lista de todos los 
+usados para la estimacion a través de distribuciones que se pueden generar como una mezcla de gaussiana. Considerando a cada clase como
+una sola gaussiana y a través de las herramientas copiadas en la carpeta de cestien, me genero una lista de todos los 
 datos de entrenamiento (lo hago con testeo que se usan mas adelante), 
 
   ls proyectos/datos/mfc/train/*/*  > proyectos/modelos/train.scp
@@ -236,13 +237,14 @@ carpetas macros y hmmdefs. Los comandos de los programas son los siguietes:
 	proyecto/scripts/go.gen-macros proyecto/hmm0/vFloors  proyecto/hmm0/proto > proyecto/hmm0/macros
 
 Luego de tener un modelo inical o HMM0, se prosigue a un entrenamiento o una re-estimacion con los datos test.scp y me genero un nuevo 
-modelo HMM1 a traves del comando HRest(se realiza hasta un hmm2) de la siguiente forma (el comando se realizo en la carpeta 
-proyecto/modelos ):
+modelo HMM1 a traves del comando HRest(se realiza hasta un hmm2). El HERest realiza un entrenamiento EM para calcular los parametros de
+cada una de las clases, recibe un modelo como datos de entrada y entrega un modelo re estimado como se menciono anteriormente,el HERest
+se realiza de la siguiente forma (el comando se realizo en la carpeta proyecto/modelos):
 
 	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm0/macros\
-	       -H hmm0/hmmdefs -M  hmm1 ../etc/monophones+sil
+	       -H hmm0/hmmdefs -M  hmm1 ../etc/monophones+sil (hmm0 es la entreda y la salida es hmm1)
 	HERest -C ../config/config -I ../etc/phones0.mlf -t 250.0 150.0 1000.0 -S train.scp -H hmm1/macros\
-	       -H hmm1/hmmdefs -M  hmm2 ../etc/monophones+sil
+	       -H hmm1/hmmdefs -M  hmm2 ../etc/monophones+sil (hmm1 es la entreda y la salida es hmm2)
 
 Estos entrenamientos usaron los archivos MLF de los fonemas (sin sp) "phones0.mlf" junto con la lista de los datos de entrenamiento, el 
 HERest realiza una re-estimacion de los parametros (media, varianza y matrix de transicion) sobre cada gaussiana de cada clase usando 
@@ -275,8 +277,9 @@ Para continuar con los entrenamientos se utiliza la herramiento HHEd, para eso s
 	TI silst {sil.state[3],sp.state[2]}
 
 donde el comando AT me agrega transiciones a las matrices de transiciones de cada fonema(no entoy seguro de esto me suena raro que lo 
-agregue a todos los fonemas.), esto se hace para agregar el silencio sp que no se tuvo encuenta, por otro lado el comando TI me genera un "tied-state" llamado silst(los parametros de este estado se 
-encuentran en hmmdefs). Todo lo anterior se agrega a través de la herramienta HTK HHEd que se ejecuta como:
+agregue a todos los fonemas.), esto se hace para agregar el silencio sp que no se tuvo encuenta, por otro lado el comando TI me genera
+un "tied-state" llamado silst(los parametros de este estado se encuentran en hmmdefs). Todo lo anterior se agrega a través de la
+herramienta HTK HHEd que se ejecuta como:
 
 	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 sil.hed ../etc/monophones+sil+sp
 
@@ -295,23 +298,39 @@ Hasta aca tengo el entrenamiento de una sola gaussiana, a continuacion se prosig
 Creacion de modelos de lenguajes:
 -------------------------------------------------------------------------------
 
+Aclaracion:  aca escribi frase o fonema/palabra, pero en realidad el modelo se puede aplicar para cualquiera de los tres,
+es decir, puedo tener un modelo de frase o de palabra o de fonema no es que una probabilidad depende de eso o sea que sea
+solo de la frase o palabra o fonema sino que puede ser cualquiera de los 3. (Esto hay una probabilidad que no estoy seguro
+que dice asi P(Y|W), creo que la Y es lo anterior a W o algo asi, porque no me cierra, y a anterior me refiero si W es 
+palabra, Y es tal fonema).).
+
+Un modelo de lenguaje usa una aproximacion de N-gramas, el modelo es la probabilidad de que la persona dijo esa frase para eso se aproxima a 
+N-gramas (la palabra dicha depende solo de las N palabras anteriores). Para el calculo de esta probabilidad se usa un conteo sobre los datos
+de entrenamiento ( la probabilidad de una palabra es la cantidad de veces que se dijo esa palabras sobre las palabras totales. Si se usa laplace
+se tiene que se suma uno al numerador pero eso cambia al denominador y termina siendo la suma de todas las frases o datos que se dijo esa palabra.)
+En realidad, el modelo es el argumento maximo (esto es por la estimacion de la frase, busco la frase de mayor probabilidad)
+del producto de una probabilidad de cada uno de los fonemas/palabras con la probabilidad de cada fonema/palabra.
+
 Para la creacion de los modelos, necesito las transcripciones sin la identificacion que se coloca en "promptsl40.train". Para eso
 se usa el awk de nuevo, y guardando el resultado en train.txt:
 
   awk '{for(n=2;n<=NF;n++){printf"%s ",$n;}printf"\n";}' promptsl40.train > train.txt
 
-Luego se realiza lo mismo, solo que se usa los datos de testeo creando un archivo de vocabulario:
+(La verdad supongo que se usan los datos de train para no mezclar con los datos de testeo, pero no se porque usamos los de test, se que estan las
+ transcripciones ahi).Luego me genero el vocabulario usando los datos de testeo:
 
   cat promptsl40.test |awk '{for(i=2;i<=NF;i++){print $i}}'|sort|uniq > vocab
 
-El vocabulario no tiene los fonemas de <s> y </s> por lo que se agrega editando vocab. Esto se hace para poder detectar los
-comienzo y fines de cada oración. Lo mismo se hace con el diccionario agregando lo siguiente:
+El vocabulario contiene una lista de palabras que quiero detectar, pero tenemos que suponer que queremos detectar esas palabras.
+El vocabulario no tiene los estados de <s> y </s> (son estado no?, fonema pensandolo bien no pueden ser, me suenan que son estados
+para el hmm indicando el fin de cada palabra/fonema) por lo que se agrega editando vocab. Esto se hace para poder detectar los
+comienzo y fines de cada frase/palabra/fonema. Lo mismo se hace con el diccionario agregando lo siguiente:
 
   <s>  [] sil
   </s> [] sil
 
-Usando la herramienta SRIML "ngram-count" se crea un modelo de lenguaje llamado "lml40", generando bigramas (dos palabras, es decir, que
-la probabilidad de decir una palabra solo depende de la anterior), se ejecuto el siguiente comando(en la carpeta proyecto/modelos):
+Usando la herramienta SRIML "ngram-count" se crea un modelo de lenguaje llamado "lml40", generando bigramas (dos palabras), 
+se ejecuto el siguiente comando(en la carpeta proyecto/modelos):
 
   ../../../../usr/local/speechapp/srilm/bin/i686-m64/ngram-count -order 2 -text train.txt -lm lml40 -ukndiscount2 -vocab vocab
 
@@ -321,21 +340,24 @@ la probabilidad de decir una palabra solo depende de la anterior), se ejecuto el
 
   HBuild -s '<s>' '</s>' -n lml40  vocab wdnet
 
-donde el -s indica el comienzo y el fin de cada frase. Con esto obtego el wdnet para despues usar para el reconocimiento de las palabras de
-testeo.
+donde el -s indica el comienzo y el fin de cada frase (por eso hay que agregarlo al vocabulario). Con esto obtego el wdnet para despues usar 
+para el reconocimiento de las palabras de testeo. El wdnet es una lista de palabras que de entrada al modelo del lenguaje.
 
 ###############################################################################
 Reconocimiento con el modelo de unigramas y una sola gaussiana:
 -------------------------------------------------------------------------------
 
 Luego de tener el wdnet, el HTK nos da una herramienta para la implementacion del algoritmo de viterbi (reconocimiento) y la herramienta
-HRest para la evaluacion de los resultados. Nos paramos en la carpeta proyecto/rec y ejecutamos el algoritmo de viterbi con el siguiente
+HResults para la evaluacion de los resultados. Nos paramos en la carpeta proyecto/rec y ejecutamos el algoritmo de viterbi con el siguiente
 comando:
 
   HVite -H -C ../config/config ../modelos/hmm6/macros -H ../modelos/hmm6/hmmdefs -S ../modelos/test.scp -l '*'\
 	      -i ../etc/recout.mlf -w ../etc/wdnet -p 0.0 -s 5.0 ../etc/dictl40 ../etc/monophones+sil+sp &
 
-y observamos los resultados con el sguiente comando(los resultados se encuentra en el archivo recount.mlf):
+El comando de HVite realiza el algoritmo de viterbi busca el recorrido de maxima probabilidad del modelo hmm6 para estimar los datos que se
+encuentra en test.scp, y devuelve un archivo MLF llamado recout, para calcular estas probabilidades se necesita el diccionario, las palabras
+que quiero estimar y la lista de fonemas.Observamos los resultados con el siguiente comando(los resultados se encuentra en el archivo 
+recount.mlf):
 
   HResults -I test.mlf monophones+sil+sp recout.mlf
 
@@ -350,20 +372,27 @@ SENT: %Correct=8.00 [H=79, S=908, N=987]
 WORD: %Corr=59.58, Acc=46.54 [H=4713, D=395, S=2802, I=1032, N=7910]
 ===================================================================
 
+Es un 60%, para la mejora de este porcentaje se usan las mezclas de gaussianas esplicado mas adelante.
+
 ###############################################################################
 Refinamiento del modelo agregando mezclas de gaussianas:
 -------------------------------------------------------------------------------
 
 Los resultados anteriores fueron con una sola gaussiana, a continuacion se entrena una mezcla de gaussiana. Para eso se creo el archivo 
-"cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear (el numero 2). Luego se usa el HHEd para crear un modelo HMM1-2.
-Como :
-	HHEd -H hmm3/macros -H hmm3/hmmdefs -M hmm4 cmds.hed ../etc/monophones+sil+sp
+"cmds.hed", que contine la linea "MU 2 {*.state[2-17].mix}" que decide cuantas gaussianas crear (el numero 2 dice la cantidad). Luego se 
+usa el HHEd para crear un modelo HMM1-2 a partir del modelo anterior, en este caso el modelo de una gaussiana de hmm6:
 
-Se realiza dos entrenamiento mas con lo visto anteriormente (HRest) y luego se corre el HVite. Se observan los resultados con HResults. Esto se hace con mezclas 
-de gaussianas de 2,4,8,16,32,64,128 y 256 siempre usando la ultima mezcla de gaussiana usada, es decir para la mezcla de 16 gaussianas primero se entreno la mezcla
-de 8 gaussiana y despues se uso el HHEd cambiando el cmds.hed para que cree la mezcla de 16 gaussianas. Se muestras los resultados:
+	HHEd -H hmm6/macros -H hmm6/hmmdefs -M hmm1-2 cmds.hed ../etc/monophones+sil+sp
 
- Los resultados son los siguientes:
+Se realiza dos entrenamiento mas con lo visto anteriormente (HRest) y luego se corre el HVite para el reconocimiento. Se observan los 
+resultados con HResults con el archivo recoutX.mlf (la X indica la cantidad de gaussianas). Esto se hace con mezclas de gaussianas de 
+2,4,8,16,32,64,128 y 256 siempre usando la ultima mezcla de gaussiana usada, es decir para la mezcla de 16 gaussianas primero se entreno 
+la mezcla de 8 gaussiana y despues se uso el HHEd cambiando el cmds.hed para que cree la mezcla de 16 gaussianas. Se muestras los resultados:
+
+Aclaracion: aca cuando se termino de entrenar un modelo, por ejemplo, hmm3-2, se uso este ultimo modelo para la creacion del modelo hmm3-4 usando
+el HHEd (la entrada es hmm3-2 y la salida hmm1-4). Luego lo mismo para cada gaussiana, al final se tienen 6 modelos para una gaussiana sola (hmm1,
+hmm2,hmm3,hmm4,hmm5 y hmm6) y 3 modelos paras las mezclas de gaussianas (hmm1-X,hmm2-X y hmm3-X, donde X es la cantidad que pertenece al siguiente 
+conjunto de numeros: 2,4,8,16,32,64,128 y 256)
 
 2 gaussianas:
 ====================== HTK Results Analysis =======================
@@ -441,3 +470,8 @@ WORD: %Corr=85.11, Acc=80.52 [H=6732, D=172, S=1006, I=363, N=7910]
 De aca se ve que usar 258 es un gasto de computadora inecesario, porque baja el reconocimiento
 entonces conviene usar 128. Hay que aclarar que esto es para la cantidad de datos usados.
 
+UNA PREGUNTA: se que se usan los coeficientes mfcc para el reconocimiento que divide por bandas
+la señal de audio y es mas compatible con la respuesta del oido (cambia la amplitud por bandas,
+segun entendi). Pero entre el cepstrum y LPC, lo que veo es que son dos formas para transmitir o 
+representar los datos solo que en el LPC te quedas con la ganancia y la matriz A y el cepstrum los
+coeficientes cepstrum ¿porque se usa cepstrum en lugar de LPC?. Talvés entendi mal los temas.
