@@ -200,7 +200,7 @@ las transcripciones, estos pueden a nivel palabra o fonema. El formato que tiene
 	<palabra1/fonema1>
 	<palabra2/fonema2>
 	...(todas las palabras/fonemas del archivo)
-	. (indica el fin del archivo)
+	. (indica el fin del dato que se saco los fonemas/palabras)
 
 los archivos MLF de palabras son los creados con la herramienta prompts2mlf (testmlf y trainmlf), los archivos MLF de los fonemas se uso 
 el comando HLED y estan en el archivo phones0.mlf (este no contiene el sp, mas adelante se agrega el sp haciendo lo mismo solo cambiando
@@ -341,7 +341,8 @@ se ejecuto el siguiente comando(en la carpeta proyecto/modelos):
   HBuild -s '<s>' '</s>' -n lml40  vocab wdnet
 
 donde el -s indica el comienzo y el fin de cada frase (por eso hay que agregarlo al vocabulario). Con esto obtego el wdnet para despues usar 
-para el reconocimiento de las palabras de testeo. El wdnet es una lista de palabras que de entrada al modelo del lenguaje.
+para el reconocimiento de las palabras de testeo. El wdnet es un grafo donde los nodos representa las palabras y los caminos las transcripciones
+de las frases.
 
 ###############################################################################
 Reconocimiento con el modelo de unigramas y una sola gaussiana:
