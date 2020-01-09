@@ -1,0 +1,143 @@
+###############################################################################
+Aclaraciones:
+###############################################################################
+
+Para comenzar se genero una carpeta llamada gf dentro de proyecto para separar los trabajos.
+
+###############################################################################
+Comienzo del trabajo de HTK:
+###############################################################################
+
+###############################################################################
+Creacion de las carpetas:
+-------------------------------------------------------------------------------
+
+Dentro de la estructura del trabajo pasado se crea la carpeta GF que tiene lo 
+relacionado con lo de gramatica finita, en esa carpeta se crea la siguiente estructura
+de datos:
+
+Se creo la siguiente estructura de carpetas:
+
+* GF
+   * datos
+      * wav 
+      * mfc
+   * etc
+   * rec
+   * log
+   * config
+
+Para eso se uso el comando mkdir "nombre de la carpeta" de la terminar
+de ubuntu(obs: tambien se puede hacer mkdir "carpeta1" "carpeta2" ..., y poner
+una direccion de la carpeta, como "datos/wav", para esto datos tiene que
+estar creada ). Para borar una carpeta con sub carpetas adentro uso el comando
+rm "nombre de la carpeta" -R (el -R indica que es recursivo).
+
+A continuacion se copiaron los siguientes archivos de la carpeta
+/home/cestien/proyecto:
+
+* config.hcopy en ~/proyecto/GF/config
+* lexicon.gf, wlistgf en  ~/proyecto/GF/etc
+
+Para eso se uso el comando cp "archivo a copiar" "lugar donde copiar".
+
+###############################################################################
+Objetivo:
+-------------------------------------------------------------------------------
+
+La idea de este trabajo practico es usar el reconocedor del trabajo anterior para reconecer
+las palabras clasicas de una llamada telefonica. Un ejemplo seria "llamar a Pablo" o "llamar al
+1132478972". Para eso hay que cambiar los datos de prueba o testeo, para eso se graban 200 audios
+con frases tipicas de comandos para llamar. Luego se tienen que transformar en MFFC como se 
+realizo en el trabajo pasado y las transcripciones se necesitan los archivos MLF.
+
+Ahora, como se cambian las palabras de testeo necesito cambiar el wordnet (el grafo en el cual me dice
+que palabras tengo junto con las transcripciones). Es necesario cambiar el diccionario porque se usaran
+otras palabras y tendran diferentes fonemas. 
+
+###############################################################################
+Realizacion del trabajo:
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Creacion del wdnet y archivo grammar:
+-------------------------------------------------------------------------------
+Para el reconocimiento de voz en forma "discreta" (reconocer algunas palabras sueltas), se necesita un 
+archivo para mostrar el grafo de palabras con las posibles desiciones que se puede tomar, esto seria, si
+la persona dice "llamar a", la persona puede decir un nombre o un numero pero si la persona dice "comuniqueme 
+con" la siguiente palabra si o si va a ser un nombre. Para esto se crea un archivo llamado "gram" que contiene
+lo siguiente:
+
+	$nums = cero | uno | dos | tres | cuatro | cinco | seis | siete | ocho | nueve;
+	$nombres = juan [fernandez] | juana | patricia | pedro [rodriguez] | andrea [perez] | andres;
+	(enviar-com ( (llame|llamar) (a <$nums> | a $nombres) | comuniqueme con $nombres) enviar-fin)
+
+donde los | indican las posibles palabras a decir en un mismo nivel (nums o nombres) y la ultima linea dice que 
+palabras puede ir despues de las palabras iniciales.
+
+Para la creacion del word network, se usa la herramienta de HParse del HTK. La misma recibe como entrada el archivo "gram",
+para eso se supone que la mayoria de las palabras a reconocer se encuentran en el archivo "gram". El comando es el 
+siguiente:
+
+	HParse gram wdnetgf
+
+aca se ve una diferencia con el trabajo anterior, como yo se que palabras quiero reconocer algunas palabras no necesito usar
+todos los datos de testeo para realizar el word network. Solo necesito saber que palabras voy a detectar para realizar el 
+word network (recordamos que el word network es un archivo que contiene las tranciciones de cada palabra junto con los estados
+en si, es decir, cada palabra).
+ 
+-------------------------------------------------------------------------------
+Generaciones de audios aleatorios:
+-------------------------------------------------------------------------------
+
+Ahora que tengo el word network, necesito los datos para realizar el reconocimiento, para eso se usa una herramienta del HTK donde
+a partir del "wdnetgf" y el diccionario me quenera una cantidad X de datos de forma aleatoria, ese archivo es el que se usa para las
+transcripciones. Para la creacion del diccionario, se vuelve a usar el comando HDMan de la forma del trabajo anterior (cambiando los
+datos correspondiente para el trabajo de gramatica finita), el comando se ejecuta de la siguiente forma:
+
+	HDMan -m wlist.gf -g global.ded -n monophonesgf -l dlogGF dictgf lexicon.gf
+
+donde los archivos wlist.gf y lexicon.gf se copiaron de la carpeta de cestien, el global.ded contiene las siguientes instrucciones:
+
+	AS sp		(agrega sp)
+	RS cmu		()
+	MP sil sil sp	(junta el sp y el sil en un estado sil)
+
+(Algunos usal el global.ded del trabajo pasado, pero yo lei en el HTK book que usan este global.ded por la dudas realizo con los dos 
+y veo la diferencia).
+
+el comando genera el dictgf y monophonesgf. Con el dictgf y el wdnet se prosigue a generar datos aleatorios para realizar el reconocimiento
+para eso el HTK da como instructivo el HSGen, que recibe como entrada los archivos mencionados y devuelve una lista de frases aleatorias 
+generadas con las palabras de los archivos de entrada.  Para guardarlo en un archivo, se usa el > de linux, como el archivo que se va a 
+generar son las transcipciones de los datos. El comando seria el siguiente:
+
+	HSGen -l -n 200 wdnetgf dictgf > promptsgf
+
+el 200 indica que se generar 200 datos diferentes. Luego de realizar las transcripciones, se grabaron los 200 audios diferentes, para eso se
+el microfono de un celular moderno (2017). Usando una aplicacion para grabar los audios en forma de .wav (el archivo debe tener una Fs de 16kHz).
+
+-------------------------------------------------------------------------------
+Parametrizacion de los datos:
+-------------------------------------------------------------------------------
+
+Como se vio en el trabajo anterior, se necesitan los datos a reconocer indetificados por sus mfc, es decir,
+
+	nombre1.wav	nombre1.mfc
+	nombre2.wav	nombre2.mfc
+	nombre3.wav	nombre3.mfc
+	...(con todos los datos)
+
+para la creacion del mfc, se usa el script go.mfclist (el mismo del trabajo anterior). 
+
+REVISAR SI TENGO Q MODIFICARLO
+
+Luego de obtener el listado mencionado, se prosigio a ejecutar el HCopy como en el trabajo anterior salvo que se cambio el formato en la
+configuracion (se cambio a formato WAV):
+
+	HCopy -A -V -T 1 -C config.hcopygf -S listaMFCgf
+
+-------------------------------------------------------------------------------
+Creacion de las transcripciones de palabra:
+-------------------------------------------------------------------------------
+
+Para realizar el reconocimiento, necesito los archivos MLF con las transcripciones (siempre a nivel palabra por ser discreto)

@@ -113,7 +113,7 @@ ENORMALISE = F (normalizar los datos)
 SOURCEFORMAT = NIST (formato)
 
 El comando HCopy -A -V -T 1 -C proyecto/config/config.hcopy -S  proyecto/datos/genmfc.train y el comando
-HCopy -A -V -T 1 -C proyecto/config/config.hcopy -S proyecto/datos/genmfc.test me carga la confiuracion
+HCopy -A -V -T 1 -C proyecto/config/config.hcopy -S proyecto/datos/genmfc.test me carga la configuracion
 del archivo config.hcopy. Aparte me genero los archivos af14_001.mfc en la carpeta proyecto/datos/mfc/af14.
 Y asi con cada unos de los datos de entrenamiento o testeo, para eso ejecuto el programa go.mfclist copiado
 de la carpeta de cestien.
