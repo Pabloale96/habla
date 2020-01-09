@@ -23,6 +23,7 @@ Se creo la siguiente estructura de carpetas:
       * wav 
       * mfc
    * etc
+   * scripts
    * rec
    * log
    * config
@@ -95,7 +96,7 @@ a partir del "wdnetgf" y el diccionario me quenera una cantidad X de datos de fo
 transcripciones. Para la creacion del diccionario, se vuelve a usar el comando HDMan de la forma del trabajo anterior (cambiando los
 datos correspondiente para el trabajo de gramatica finita), el comando se ejecuta de la siguiente forma:
 
-	HDMan -m wlist.gf -g global.ded -n monophonesgf -l dlogGF dictgf lexicon.gf
+	HDMan -w wlist.gf -g global.ded -n monophonesgf -l dloggf dictgf lexicon.gf
 
 donde los archivos wlist.gf y lexicon.gf se copiaron de la carpeta de cestien, el global.ded contiene las siguientes instrucciones:
 
