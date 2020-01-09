@@ -137,7 +137,31 @@ configuracion (se cambio a formato WAV):
 	HCopy -A -V -T 1 -C config.hcopygf -S listaMFCgf
 
 -------------------------------------------------------------------------------
-Creacion de las transcripciones de palabra:
+Creacion de las transcripciones de palabra y reconocimiento:
 -------------------------------------------------------------------------------
 
-Para realizar el reconocimiento, necesito los archivos MLF con las transcripciones (siempre a nivel palabra por ser discreto)
+Para realizar el reconocimiento, necesito los archivos MLF con las transcripciones (siempre a nigvel palabra por ser "discreto"). Para eso, 
+se reutilizo el programa prompts2mlf copiado de la carpeta de cestine. Usandolo de la misma forma que el trabajo anterior, se tienen las 
+transcripciones en un MLF (la diferencia entre el trabajo anterior y este es que el trabajo anterior se usaron los promptstrain, ahora las
+transcripcones vienen dadas por la devolucion del comando HParse osea el promtsgf). El comando se ejecuta como:
+
+	./prompts2mlf gfmlf promptsgf
+
+A partir de todos estos archivos puedo realizar el reconocimiento a partir del HVite, para eso se usa el modelo de mayor probabilidad de 
+reconocer las palabras del trabajo anterior, en nuestro caso es el HMM con 128 gaussianas con un 86% de acertar. Como en el trabajo anterior,
+necesito un archivo "testgf.scp" (una lista de los datos de testeo) con el comando ls de linux:
+
+	ls test/*/* > ../etc/testgf.scp
+
+Luego se realiza el HVite como en el trabajo anterior con el modelo de 128 gaussianas, de la siguiente forma:
+
+		HVite -C ../config -H ../../modelos/hmm128g3/macros -H ../../modelos/hmm128g3/hmmdefs \
+		-S testgf.scp -l '*' -i recoutgf.mlf \
+		-w ../wdnetgf -p 0.0 -s 5.0 ../dictgf ../monophonesgf &
+
+con recoutgf.mlf se prosige a correr el HResult para ver los resultados:
+
+	HResults -t -f -I ../gfmlf ../monophonesgf recoutgf.mlf
+
+dando lo siguiente:
+
