@@ -166,3 +166,16 @@ con recoutgf.mlf se prosige a correr el HResult para ver los resultados:
 
 dando lo siguiente:
 
+====================== HTK Results Analysis =======================
+  Date: Sun Jan 12 13:41:28 2020
+  Ref : ../etc/gfmlf
+  Rec : recoutgf.mlf
+------------------------ Overall Results --------------------------
+SENT: %Correct=80.00 [H=160, S=40, N=200]
+WORD: %Corr=97.70, Acc=96.12 [H=1787, D=8, S=34, I=29, N=1829]
+===================================================================
+
+Se observa que a tener un conjunto menor de palabras a reconocer, se aumenta el portcentaje de las que se reconocieron
+bien. Esto se debe que cambian las probabilidades, porque al decir una palabra, la palabra que continua depende fuertemente
+de esa palabra, por lo que puedo descartar varias palabras,
+
