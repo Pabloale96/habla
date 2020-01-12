@@ -125,9 +125,33 @@ Como se vio en el trabajo anterior, se necesitan los datos a reconocer indetific
 	nombre3.wav	nombre3.mfc
 	...(con todos los datos)
 
-para la creacion del mfc, se usa el script go.mfclist (el mismo del trabajo anterior). 
+para la creacion del mfc, se usa el script go.mfclist (el mismo del trabajo anterior), solo que se modifico para los datos y distribucion de 
+carpeta creada. El script se tuvo que modificar por dos principales razones, la primera se tiene en cuenta que se uso con datos de entrenamiento
+y de testeo, pero en este tp solo me encuentro con datos de testeo porque el modelo que se va a usar el mismo que en el trabajo anterior por lo que
+no se realiza entrenamiento, esto provoca la segunda condicon porque el script se manejaba con las carpetas de test y train pero yo tengo solo datos 
+de test, entonces se borro la parte de train y test (todos los datos se encuentran en la carpeta wav) y se uso eso. El script modificado es el siguiente:
 
-REVISAR SI TENGO Q MODIFICARLO
+		#!/bin/sh
+		#Crea las listas archivos a procesar por HCopy
+		#y los directorios en mfc, Ejecutarlo desde datos
+		#
+        
+		if [ $# -ne 1 ]
+		then
+				echo Usar: $0 listatest
+				exit 1
+		fi
+		
+		ls wav |\
+		while read file
+		do
+				mkdir mfc/$file
+		done
+
+		ls wav/* >p
+		cat p |sed 's/wav/mfc/g' >q
+		paste p q > $1
+		rm p q
 
 Luego de obtener el listado mencionado, se prosigio a ejecutar el HCopy como en el trabajo anterior salvo que se cambio el formato en la
 configuracion (se cambio a formato WAV):
@@ -174,5 +198,6 @@ WORD: %Corr=97.70, Acc=96.12 [H=1787, D=8, S=34, I=29, N=1829]
 
 Se observa que a tener un conjunto menor de palabras a reconocer, se aumenta el portcentaje de las que se reconocieron
 bien. Esto se debe que cambian las probabilidades, porque al decir una palabra, la palabra que continua depende fuertemente
-de esa palabra, por lo que puedo descartar varias palabras,
+de esa palabra, por lo que puedo descartar varias palabras. Un ejemplo de esto se ve con la palabra "comuniqueme" que la 
+siguiente palabra no tiene que ser numeros (descarto 10 posibilidades) y lo unica posibilidad que tengo que sea un nombre.
 
