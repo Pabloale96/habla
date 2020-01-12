@@ -101,16 +101,13 @@ datos correspondiente para el trabajo de gramatica finita), el comando se ejecut
 donde los archivos wlist.gf y lexicon.gf se copiaron de la carpeta de cestien, el global.ded contiene las siguientes instrucciones:
 
 	AS sp		(agrega sp)
-	RS cmu		()
-	MP sil sil sp	(junta el sp y el sil en un estado sil)
 
-(Algunos usal el global.ded del trabajo pasado, pero yo lei en el HTK book que usan este global.ded por la dudas realizo con los dos 
-y veo la diferencia).
-
-el comando genera el dictgf y monophonesgf. Con el dictgf y el wdnet se prosigue a generar datos aleatorios para realizar el reconocimiento
-para eso el HTK da como instructivo el HSGen, que recibe como entrada los archivos mencionados y devuelve una lista de frases aleatorias 
-generadas con las palabras de los archivos de entrada.  Para guardarlo en un archivo, se usa el > de linux, como el archivo que se va a 
-generar son las transcipciones de los datos. El comando seria el siguiente:
+(el AS sp me agrega al final de cada palabra un estado sp. En el HTKbook, tambien agrega RS cmu (no se muy bien lo que hace ) y 
+MP sil sil sp (junta el sp y el sil en un estado sil), ejecute con los global.ded y no hay diferencie. Supongo que esto se debe a como
+suponimos las cosas). el comando genera el dictgf y monophonesgf. Con el dictgf y el wdnet se prosigue a generar datos aleatorios 
+para realizar el reconocimiento para eso el HTK da como instructivo el HSGen, que recibe como entrada los archivos mencionados y 
+devuelve una lista de frases aleatorias generadas con las palabras de los archivos de entrada.  Para guardarlo en un archivo, se usa 
+el > de linux, como el archivo que se va a generar son las transcipciones de los datos. El comando seria el siguiente:
 
 	HSGen -l -n 200 wdnetgf dictgf > promptsgf
 
